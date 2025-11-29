@@ -6,8 +6,10 @@
 //!
 //!     cargo run --example echo --features=examples
 
+use std::time::Duration;
+
 use iroh::{
-    Endpoint, EndpointAddr,
+    Endpoint, EndpointAddr, EndpointId,
     endpoint::Connection,
     protocol::{AcceptError, ProtocolHandler, Router},
 };
@@ -26,7 +28,7 @@ async fn main() -> Result<()> {
     // wait for the endpoint to be online
     router.endpoint().online().await;
 
-    connect_side(router.endpoint().addr()).await?;
+    connect_side(router.endpoint().id()).await?;
 
     // This makes sure the endpoint in the router is closed properly and connections close gracefully
     router.shutdown().await.anyerr()?;
@@ -34,9 +36,11 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn connect_side(addr: EndpointAddr) -> Result<()> {
+async fn connect_side(addr: EndpointId) -> Result<()> {
     let endpoint = Endpoint::bind().await?;
+    endpoint.online().await;
 
+    tokio::time::sleep(Duration::from_millis(2000)).await;
     // Open a connection to the accepting endpoint
     let conn = endpoint.connect(addr, ALPN).await?;
 
@@ -70,9 +74,9 @@ async fn connect_side(addr: EndpointAddr) -> Result<()> {
 async fn start_accept_side() -> Result<Router> {
     let endpoint = Endpoint::bind().await?;
 
+    endpoint.online().await;
     // Build our protocol handler and add our protocol, identified by its ALPN, and spawn the endpoint.
     let router = Router::builder(endpoint).accept(ALPN, Echo).spawn();
-
     Ok(router)
 }
 
